@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 #Initial version of the server
 import sys
 import time
