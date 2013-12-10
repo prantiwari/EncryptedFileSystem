@@ -110,12 +110,15 @@ def main():
                             '--data',
                             required=True,
                             help='Specify file content')
+    shell_parser = subparsers.add_parser('shell', help='start shell')
     args = parser.parse_args()
     print '\n\n'
     if args.mode == "get":
         get_handler(args)
     elif args.mode == "put":
         put_handler(args)
+    elif args.mode == "shell":
+        print "STARTING SHELL"
     else:
         usage()
 
