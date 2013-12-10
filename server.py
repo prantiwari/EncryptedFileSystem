@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 #Initial version of the server
 import sys
 import time
@@ -33,26 +32,23 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             s.wfile.write("<p>File content: %s</p>" % content)
         s.wfile.write("</body></html>")
     def do_POST(s):
+        # TODO before doing post, Server should check permission
         """Respond to a POST request."""
-        if s.path.endswith(".txt"):
-            file_name = s.path[s.path.rfind("/") + 1:]
-            store_path = pjoin(curdir, file_name)
+        file_name = s.path[s.path.rfind("/") + 1:]
+        store_path = pjoin(curdir, file_name)
             
-            s.wfile.write('Client: %s\n' % str(s.client_address))
-            s.wfile.write('Path: %s\n' % s.path)
-            length = s.headers['content-length']
-            data = s.rfile.read(int(length))
+        s.wfile.write('Client: %s\n' % str(s.client_address))
+        s.wfile.write('Path: %s\n' % s.path)
+        length = s.headers['content-length']
+        data = s.rfile.read(int(length))
 
-            with open(store_path, 'w') as fh:
-                fh.write(data.decode())
-            
-            s.send_response(200)
-            s.send_header("Content-type", "text/html")
-            s.end_headers()
-        else:
-            # Accept txt file for now. 
-            # TODO support rich file format
-            s.send_response(304)
+        with open(store_path, 'w') as fh:
+            fh.write(data.decode())
+
+        s.send_response(200)
+        s.send_header("Content-type", "text/html")
+        s.end_headers()
+        # TODO support rich file format
 
 if __name__ == '__main__':
     server_class = BaseHTTPServer.HTTPServer

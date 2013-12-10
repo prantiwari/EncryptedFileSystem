@@ -2,22 +2,74 @@
 # Initial client version.
 import httplib, urllib, getopt
 import argparse
+import crypto
+import base64
 
+# Helpers to encode and decode a string with base64
+EncodeAES = lambda s: base64.b64encode(s) 
+DecodeAES = lambda e: base64.b64decode(e)
 def get_handler(arg):
+    with open('private/files.txt', "r") as f:
+        for line in f:
+            ind = line.find(arg.name)
+            # here assumes the files have different names
+            # TODO check for the same names that are substring of the other
+            if ind != -1:
+                key_ind = line.find("|")+1
+                hash_ind = line.rfind(":")
+                end_ind = line.find("\n") 
+                cap = (line[key_ind:hash_ind], line[hash_ind+1:end_ind])
+                print "CAP for the file is: ", cap
+                break
+    hash = crypto.hash(crypto.hash(cap[0]))
+    print "HASH of the key: ", hash
+    cipher = get_data(hash)
+    print "RECEIVED CIPHER: ", cipher
+    valid = crypto.verify(cipher, cap)
+    print "VAlid: ", valid
+    if valid:
+        ptext = crypto.decrypt(cipher, cap[0])   
+        print "Decrypted file is: ", ptext
+
+def get_data(name):
     conn = httplib.HTTPConnection("localhost:8000")
-    conn.request("GET", "/"+arg.name)
+    conn.request("GET", "/"+name)
     r1 = conn.getresponse()
     print r1.status, r1.reason
-    data1 = r1.read()
-    print "Data in the file is: "+ data1
+    # Parse the http responce
+    html = r1.read()
+    data_ind = html.find("data=")
+    html = html[data_ind+5:]
+    data_end = html.find("<")
+    data = html[:data_end]
+    data = urllib.unquote(data).decode("utf8")
+    data = DecodeAES(data)
+    print "Data in the file is: "+ data
     conn.close()
+    return data
     
 def put_handler(arg):
-    params = urllib.urlencode({'data': arg.data})
-    headers = {"Content-type": "application/x-www-form-urlencoded",
+    (cap, data) = crypto.encrypt(arg.data)
+    # save the cap in a private file 
+    with open('private/files.txt', "a") as f:
+        c = arg.name+ "|" + cap[0] + ":" + cap[1] + "\n"
+        print "CAPABILITY: " ,c
+        f.write(c)
+
+    # double hash the key to get the file name
+    file_name = crypto.hash(crypto.hash(cap[0]))
+    print "Storage index: ",file_name
+    post_data(data, file_name)  
+
+def post_data(data, name):
+    print "STORED CIPHER IS: ", data
+    encoded = EncodeAES(data)
+    print "Encoded data: ", 
+    params = urllib.urlencode({'data': encoded})
+    headers = {"Content-type": "text/html/plain",
     "Accept": "text/plain"}
     conn = httplib.HTTPConnection("localhost:8000")
-    conn.request("POST", "/"+ arg.name, params, headers)
+    conn.request("POST", "/"+ name, params, headers)
     response = conn.getresponse()
     print response.status, response.reason
     data = response.read()

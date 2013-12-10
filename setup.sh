@@ -2,6 +2,11 @@
 # Setup script for EncrypFS
 sudo apt-get install python-dev
 
+# make private  
+mkdir private
+touch private/files.txt
+chmod 700 private/files.txt
+
 crypto="pycrypto-2.6.1"
 ftp="pyftpdlib-1.3.0"
 # Compile the libraries
