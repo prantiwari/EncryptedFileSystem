@@ -135,7 +135,16 @@ def put_handler(arg):
     print "Write cap for the file is: %s: %s" %( cap[0], cap[1])
     print "Read cap for the file is: %s: %s" %( crypto.my_hash(cap[0]), cap[1])
     print "You can access the capability in private/files.txt"
-    post_data(data, cap[0] + ":" + cap[1])  
+    post_data(data, cap[0] + ":" + cap[1])
+
+def ls_handler(arg):
+    f = open("private/files.txt")
+    for line in f:
+        if arg.v:
+            print line
+        else:
+            print line.split("|")[0]
+    f.close()
 
 def post_data(data, name):
     encoded = EncodeAES(data)
@@ -189,6 +198,10 @@ def build_parser(parser, shellflag = False):
                             '--writecap',
                             required=False,
                             help='Put a file with cap')
+    ls_parser = subparsers.add_parser('ls', help='display names of your files')
+    ls_parser.add_argument('--v',
+                           action='store_const',
+                           const='42')
     if shellflag:
         shell_parser = subparsers.add_parser('shell', help='start shell')
         
@@ -202,6 +215,8 @@ def main():
         get_handler(args)
     elif args.mode == "put":
         put_handler(args)
+    elif args.mode == "ls":
+        ls_handler(args)
     elif args.mode == "shell":
         print "STARTING SHELL"
         shell()
@@ -225,7 +240,7 @@ def shell():
         elif args.mode == "put":
             put_handler(args)
         elif args.mode == "ls":
-            continue
+            ls_handler(args)
         elif args.mode == "mkdir":
             continue
         elif args.mode == "cd":
