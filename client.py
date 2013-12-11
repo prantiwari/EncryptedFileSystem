@@ -5,6 +5,7 @@ import argparse
 import crypto
 import base64
 import sys
+import shlex
 
 # Helpers to encode and decode a string with base64
 EncodeAES = lambda s: base64.b64encode(s) 
@@ -133,7 +134,7 @@ def shell():
     while True:
         inp = raw_input("EncryptFS : ")
         try: 
-            args = parser.parse_args(inp.split(' '))
+            args = parser.parse_args(shlex.split(inp))
 
         #hack to stop parser from terminating program
         except SystemExit as e:
