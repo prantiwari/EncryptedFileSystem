@@ -9,8 +9,9 @@ from os.path import join as pjoin
 import crypto
 import httplib, urllib, getopt
 
-HOST_NAME = '127.0.0.1' #TODO change this eventually to amazon host or similar.
-PORT_NUMBER = 8000 # Maybe set this to 8080.
+HOST_NAME = '' #TODO change this eventually to amazon host or similar.
+PORT_NUMBER = 8080 # Maybe set this to 8080.
+DATALOCATION = "/userdata/"
 EncodeAES = lambda s: base64.b64encode(s) 
 DecodeAES = lambda e: base64.b64decode(e)
 SPLIT_SYMBOL = "{}{}"
@@ -31,13 +32,13 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         name = s.path[s.path.rfind("/")+1:]
         cap = name[:name.find(":")] 
         file_name = crypto.my_hash(cap)
-        abs_path = os.path.abspath(pjoin(curdir, file_name))
+        abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
         if os.path.exists(abs_path):
             # it is read cap
             s.wfile.write("<html><head><title>Title goes here.</title></head>")
             s.wfile.write("<body><p>This is a test.</p>")
             s.wfile.write("<p>You accessed path: %s</p>" % s.path)
-            s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir, s.path))
+            s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir+DATALOCATION, s.path))
             content = ""
             with open(abs_path, 'r') as fh:
                 content =  fh.read()  
@@ -45,13 +46,13 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             s.wfile.write("</body></html>")
         else:
             file_name = crypto.my_hash(file_name)
-            abs_path = os.path.abspath(pjoin(curdir, file_name))
+            abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
             if os.path.exists(abs_path):
                 # it is a write cap
                 s.wfile.write("<html><head><title>Title goes here.</title></head>")
                 s.wfile.write("<body><p>This is a test.</p>")
                 s.wfile.write("<p>You accessed path: %s</p>" % s.path)
-                s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir, s.path))
+                s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir+DATALOCATION, s.path))
                 content = ""
                 with open(abs_path, 'r') as fh:
                     content =  fh.read()  
