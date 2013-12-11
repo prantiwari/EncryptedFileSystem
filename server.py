@@ -7,8 +7,8 @@ from os import curdir
 from os.path import join as pjoin
 import crypto
 
-HOST_NAME = '127.0.0.1' #TODO change this eventually to amazon host or similar.
-PORT_NUMBER = 8000 # Maybe set this to 8080.
+HOST_NAME = '' #TODO change this eventually to amazon host or similar.
+PORT_NUMBER = 8080 # Maybe set this to 8080.
 DATALOCATION = "/userdata/"
 
 class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
