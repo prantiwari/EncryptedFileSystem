@@ -46,7 +46,7 @@ def get_handler(arg):
         print "Decrypted file is: ", ptext[:txt]
 
 def get_data(name):
-    conn = httplib.HTTPConnection("18.194.1.15:8080")
+    conn = httplib.HTTPConnection("18.194.1.151:8080")
     conn.request("GET", "/"+name)
     r1 = conn.getresponse()
     print r1.status, r1.reason
@@ -96,7 +96,7 @@ def post_data(data, name):
     params = urllib.urlencode({'data': encoded})
     headers = {"Content-type": "text/html/plain",
     "Accept": "text/plain"}
-    conn = httplib.HTTPConnection("18.194.1.15:8080")
+    conn = httplib.HTTPConnection("18.194.1.151:8080")
     conn.request("POST", "/"+ name, params, headers)
     response = conn.getresponse()
     print response.status, response.reason
