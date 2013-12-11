@@ -7,6 +7,8 @@ mkdir private
 touch private/files.txt
 chmod 700 private/files.txt
 
+mkdir private/keys
+chmod 700 private/keys
 crypto="pycrypto-2.6.1"
 ftp="pyftpdlib-1.3.0"
 # Compile the libraries
