@@ -35,8 +35,8 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
         if os.path.exists(abs_path):
             # it is read cap
-            s.wfile.write("<html><head><title>Title goes here.</title></head>")
-            s.wfile.write("<body><p>This is a test.</p>")
+            s.wfile.write("<html><head><title>READ CAP PRESENTED</title></head>")
+            s.wfile.write("<body><p>You do not have write privileges.</p>")
             s.wfile.write("<p>You accessed path: %s</p>" % s.path)
             s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir+DATALOCATION, s.path))
             content = ""
@@ -49,8 +49,9 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
             if os.path.exists(abs_path):
                 # it is a write cap
-                s.wfile.write("<html><head><title>Title goes here.</title></head>")
-                s.wfile.write("<body><p>This is a test.</p>")
+                print "WRITE"
+                s.wfile.write("<html><head><title>WRITE CAP PRESENTED</title></head>")
+                s.wfile.write("<body><p>Thanks for updating the file</p>")
                 s.wfile.write("<p>You accessed path: %s</p>" % s.path)
                 s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir+DATALOCATION, s.path))
                 content = ""
@@ -60,6 +61,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 s.wfile.write("</body></html>")
             else:
                 # it is nothing
+                print "NOTHING"
                 s.wfile.write("<html><head><title> ERROR </title></head>")
                 s.wfile.write("<body><p>Can't access</p>")
                 s.wfile.write("</body></html>")
