@@ -77,12 +77,47 @@ def get_data(name):
     return data
     
 def put_handler(arg):
-    #(cap, data) = crypto.encrypt(arg.data)
-    # here cap is (my_hash(private_key), my_hash(public_key))
-    (private, public, cap) = crypto.generate_RSA()
+    if arg.writecap:
+        # putting with a cap requires
+        # 1) Getting the encrypted private key
+        # 2) Decrypting it, and using it to sign the updated data
+        # 3) Signing the encryption of the updated data with the private key
+        cap = arg.writecap.split(":")
+        cipher = get_data(arg.writecap) 
+        data_ar = cipher.split(SPLIT_SYMBOL)
+        sign = data_ar[1]
+        data = data_ar[0]
+        public = data_ar[2]
+        assert(data_ar[3] == crypto.my_hash(public))
+
+        valid = crypto.verify_RSA(public, sign, data)
+        print "Valid: ", valid
+        if valid:
+            # generate the AES decryption key and decrypt
+            salt = "a"*16
+            s = str(cap[0] + salt)
+            hashed_key = crypto.my_hash(s)
+            ptext = crypto.decrypt(data, hashed_key[:16])   
+            splitted = ptext.split(SPLIT_SYMBOL)
+            raw_data = splitted[0]
+            enc_pk = splitted[1]
+            private = crypto.decrypt(enc_pk, cap[0])
+            data = raw_data + arg.data
+    else:
+        # here cap is (my_hash(private_key), my_hash(public_key))
+        (private, public, cap) = crypto.generate_RSA()
+        # save the cap in a private file 
+        with open('private/files.txt', "a") as f:
+            c = arg.name+ "|" + cap[0] + "|" + cap[1] + "\n"
+            f.write(c)
+        # save the private key in a file 
+        with open('private/keys/'+arg.name+"public", "w") as f:
+            f.write(public)
+        with open('private/keys/'+arg.name+"private", "w") as f:
+            f.write(private)
+        data = arg.data
     # store the encrypted private key in the data
-    # so that upon later updates authorized users can access it
-    data = arg.data + SPLIT_SYMBOL + crypto.encrypt(private, cap[0], False)
+    data = data + SPLIT_SYMBOL + crypto.encrypt(private, cap[0], False)
     # use the read key as an encryption key for the concatted data
     salt = "a"*16
     s = str(cap[0] + salt)
@@ -95,18 +130,10 @@ def put_handler(arg):
     # enc_data | signature | public_key | hash(public_key)
     data = data +SPLIT_SYMBOL+ signature + SPLIT_SYMBOL + public + SPLIT_SYMBOL + crypto.my_hash(public)
 
-    # save the cap in a private file 
-    with open('private/files.txt', "a") as f:
-        c = arg.name+ "|" + cap[0] + "|" + cap[1] + "\n"
-        f.write(c)
-    # save the private key in a file 
-    with open('private/keys/'+arg.name+"public", "w") as f:
-        f.write(public)
-    with open('private/keys/'+arg.name+"private", "w") as f:
-        f.write(private)
     # double hash the key to get the file name
     file_name = crypto.my_hash(crypto.my_hash(cap[0]))
     print "Write cap for the file is: %s: %s" %( cap[0], cap[1])
+    print "Read cap for the file is: %s: %s" %( crypto.my_hash(cap[0]), cap[1])
     print "You can access the capability in private/files.txt"
     post_data(data, cap[0] + ":" + cap[1])  
 
@@ -152,12 +179,16 @@ def build_parser(parser, shellflag = False):
     put_parser = subparsers.add_parser('put', help='Put a file')
     put_parser.add_argument('-n',
                             '--name',
-                            required=True,
+                            required=False,
                             help='Put a file with name')
     put_parser.add_argument('-d',
                             '--data',
                             required=True,
                             help='Specify file content')
+    put_parser.add_argument('-wc',
+                            '--writecap',
+                            required=False,
+                            help='Put a file with cap')
     if shellflag:
         shell_parser = subparsers.add_parser('shell', help='start shell')
         

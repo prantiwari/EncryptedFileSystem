@@ -23,7 +23,6 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.end_headers()
     def do_GET(s):
         # TODO different responces to write, read, none
-        # TODO verify on this end via public_key
         """Respond to a GET request."""
         s.send_response(200)
         s.send_header("Content-type", "text/html")
@@ -37,6 +36,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
         if os.path.exists(abs_path):
             # it is read cap
+            print "READ"
             s.wfile.write("<html><head><title>READ CAP PRESENTED</title></head>")
             s.wfile.write("<body><p>You do not have write privileges.</p>")
             s.wfile.write("<p>You accessed path: %s</p>" % s.path)
@@ -68,6 +68,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 s.wfile.write("<body><p>Can't access</p>")
                 s.wfile.write("</body></html>")
     def do_POST(s):
+        
         """Respond to a POST request."""
         s.send_response(200)
         s.send_header("Content-type", "text/html")
@@ -112,9 +113,6 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # TODO support rich file format
 def send_error(s):
     s.wfile.write("<html><head><title> ERROR </title></head>")
-    s.wfile.write("<html><head><title> ERROR </title></head>")
-    s.wfile.write("<body><p>Can't access</p>")
-    s.wfile.write("</body></html>")
     s.wfile.write("<body><p>Can't access</p>")
     s.wfile.write("</body></html>")
 if __name__ == '__main__':
