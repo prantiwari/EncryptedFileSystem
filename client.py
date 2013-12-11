@@ -4,6 +4,7 @@ import httplib, urllib, getopt
 import argparse
 import crypto
 import base64
+import sys
 
 # Helpers to encode and decode a string with base64
 EncodeAES = lambda s: base64.b64encode(s) 
@@ -136,14 +137,42 @@ def main():
                             '--data',
                             required=True,
                             help='Specify file content')
+    shell_parser = subparsers.add_parser('shell', help='start shell')
     args = parser.parse_args()
     print '\n\n'
     if args.mode == "get":
         get_handler(args)
     elif args.mode == "put":
         put_handler(args)
+    elif args.mode == "shell":
+        print "STARTING SHELL"
+        shell()
     else:
         usage()
+
+def shell():
+    parser = argparse.ArgumentParser(prog='', description='Run EncrypFS client')
+    subparsers = parser.add_subparsers(help='Program mode (e.g. Put or Get a file, etc.)', dest='mode')
+    get_parser = subparsers.add_parser('get', help='Choose whether to get or put a file')
+    get_parser.add_argument('-n',
+                            '--name',
+                            required=True,
+                            help='Get a file with name')
+    put_parser = subparsers.add_parser('put', help='Put a file')
+    put_parser.add_argument('-n',
+                            '--name',
+                            required=True,
+                            help='Put a file with name')
+    put_parser.add_argument('-d',
+                            '--data',
+                            required=True,
+                            help='Specify file content')
+    while True:
+        inp = raw_input("EncryptFS : ")
+        try: 
+            args = parser.parse_args(inp.split(' '))
+        except SystemExit as e:
+            continue
 
 if __name__ == '__main__':
     main()
