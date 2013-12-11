@@ -9,10 +9,12 @@ chmod 700 private/files.txt
 
 mkdir private/keys
 chmod 700 private/keys
+mkdir userdata/
 crypto="pycrypto-2.6.1"
 # Compile the libraries
 cd lib/$crypto
 pwd
 sudo python setup.py build
 sudo python setup.py install
+
 
