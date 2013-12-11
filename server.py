@@ -95,7 +95,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # allow write if the file does not exist or
         # when you present write cap
         file_name = crypto.my_hash(crypto.my_hash(cap[0]))
-        store_path = pjoin(curdir, file_name)
+        store_path = pjoin(curdir+DATALOCATION, file_name)
         # TODO with the directory structure, notify the server of the created files
         # so that it can check if this store_path is ever created
         if os.path.exists(store_path): 
