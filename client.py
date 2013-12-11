@@ -11,6 +11,8 @@ from os import curdir
 from os.path import join as pjoin
 
 # Helpers to encode and decode a string with base64
+HOST_IP = "18.194.1.151"
+PORT = "8080"
 EncodeAES = lambda s: base64.b64encode(s) 
 DecodeAES = lambda e: base64.b64decode(e)
 SPLIT_SYMBOL = "{}{}"
@@ -56,7 +58,7 @@ def get_handler(arg):
         print "Decrypted file is: ", ptext[:txt]
 
 def get_data(name):
-    conn = httplib.HTTPConnection("18.194.1.151:8080")
+    conn = httplib.HTTPConnection(HOST_IP+":" + PORT)
     conn.request("GET", "/"+name)
     r1 = conn.getresponse()
     print r1.status, r1.reason
@@ -110,7 +112,7 @@ def post_data(data, name):
     params = urllib.urlencode({'data': encoded})
     headers = {"Content-type": "text/html/plain",
     "Accept": "text/plain"}
-    conn = httplib.HTTPConnection("18.194.1.151:8080")
+    conn = httplib.HTTPConnection(HOST_IP+":"+PORT)
     conn.request("POST", "/"+ name, params, headers)
     response = conn.getresponse()
     print response.status, response.reason
