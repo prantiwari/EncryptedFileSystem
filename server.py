@@ -32,6 +32,8 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         name = s.path[s.path.rfind("/")+1:]
         cap = name[:name.find(":")] 
         file_name = crypto.my_hash(cap)
+        print "file name: ", file_name
+        print "cap: ", cap
         abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
         if os.path.exists(abs_path):
             # it is read cap
