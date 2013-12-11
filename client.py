@@ -11,33 +11,36 @@ from os import curdir
 from os.path import join as pjoin
 
 # Helpers to encode and decode a string with base64
-HOST_IP = "18.194.1.151"
+HOST_IP = "localhost"
 PORT = "8080"
 EncodeAES = lambda s: base64.b64encode(s) 
 DecodeAES = lambda e: base64.b64decode(e)
 SPLIT_SYMBOL = "{}{}"
 def get_handler(arg):
-    with open('private/files.txt', "r") as f:
-        for line in f:
-            ind = line.find(arg.name)
-            # here assumes the files have different names
-            # TODO check for the same names that are substring of the other
-            if ind != -1:
-                key_ind = line.find("|")+1
-                hash_ind = line.rfind("|")
-                end_ind = line.find("\n") 
-                cap = (line[key_ind:hash_ind], line[hash_ind+1:end_ind])
-                break
     public = None
-    file_name = arg.name
-    abs_path = os.path.abspath(pjoin('private/keys/', file_name))
-    # check if this file was created by the user
-    if os.path.exists(abs_path):
-        with open('private/keys/'+arg.name+"public", "r") as f:
-            public = f.read() 
-    with open('private/keys/'+arg.name+"private", "r") as f:
-        private = f.read() 
-    uri = cap[0]+":"+cap[1]
+    uri = ""
+    if arg.cap:
+        uri = arg.cap
+        cap = uri.split(":")
+    else:
+        with open('private/files.txt', "r") as f:
+            for line in f:
+                ind = line.find(arg.name)
+                # here assumes the files have different names
+                # TODO check for the same names that are substring of the other
+                if ind != -1:
+                    key_ind = line.find("|")+1
+                    hash_ind = line.rfind("|")
+                    end_ind = line.find("\n") 
+                    cap = (line[key_ind:hash_ind], line[hash_ind+1:end_ind])
+                    uri = cap[0]+":"+cap[1]
+                    file_name = arg.name
+                    abs_path = os.path.abspath(pjoin('private/keys/', file_name))
+                    # check if this file was created by the user
+                    if os.path.exists(abs_path):
+                        with open('private/keys/'+arg.name+"public", "r") as f:
+                            public = f.read() 
+                    break
     # access the file via the write-cap
     cipher = get_data(uri) 
     data_ar = cipher.split(SPLIT_SYMBOL)
@@ -140,8 +143,12 @@ def build_parser(parser, shellflag = False):
     get_parser = subparsers.add_parser('get', help='Choose whether to get or put a file')
     get_parser.add_argument('-n',
                             '--name',
-                            required=True,
+                            required=False,
                             help='Get a file with name')
+    get_parser.add_argument('-c',
+                            '--cap',
+                            required=False,
+                            help='Get a file with cap')
     put_parser = subparsers.add_parser('put', help='Put a file')
     put_parser.add_argument('-n',
                             '--name',
