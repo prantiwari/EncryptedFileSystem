@@ -6,6 +6,9 @@ import crypto
 import base64
 import sys
 import shlex
+import os
+from os import curdir
+from os.path import join as pjoin
 
 # Helpers to encode and decode a string with base64
 EncodeAES = lambda s: base64.b64encode(s) 
@@ -23,9 +26,13 @@ def get_handler(arg):
                 end_ind = line.find("\n") 
                 cap = (line[key_ind:hash_ind], line[hash_ind+1:end_ind])
                 break
-    with open('private/keys/'+arg.name+"public", "r") as f:
-        public = f.read() 
-    
+    public = None
+    file_name = arg.name
+    abs_path = os.path.abspath(pjoin('private/keys/', file_name))
+    # check if this file was created by the user
+    if os.path.exists(abs_path):
+        with open('private/keys/'+arg.name+"public", "r") as f:
+            public = f.read() 
     with open('private/keys/'+arg.name+"private", "r") as f:
         private = f.read() 
     uri = cap[0]+":"+cap[1]
@@ -34,6 +41,9 @@ def get_handler(arg):
     data_ar = cipher.split(SPLIT_SYMBOL)
     sign = data_ar[1]
     data = data_ar[0]
+    public = data_ar[2]
+    assert(data_ar[3] == crypto.my_hash(public))
+
     valid = crypto.verify_RSA(public, sign, data)
     print "Valid: ", valid
     if valid:
@@ -76,7 +86,9 @@ def put_handler(arg):
     data = crypto.encrypt(data, hashed_key[:16], False)
     # sign it with private key
     signature = crypto.sign_data(private, data)
-    data = data +SPLIT_SYMBOL+ signature
+    # FINAL DATA IS
+    # enc_data | signature | public_key | hash(public_key)
+    data = data +SPLIT_SYMBOL+ signature + SPLIT_SYMBOL + public + SPLIT_SYMBOL + crypto.my_hash(public)
 
     # save the cap in a private file 
     with open('private/files.txt', "a") as f:
@@ -89,7 +101,9 @@ def put_handler(arg):
         f.write(private)
     # double hash the key to get the file name
     file_name = crypto.my_hash(crypto.my_hash(cap[0]))
-    post_data(data, file_name)  
+    print "Write cap for the file is: %s: %s" %( cap[0], cap[1])
+    print "You can access the capability in private/files.txt"
+    post_data(data, cap[0] + ":" + cap[1])  
 
 def post_data(data, name):
     encoded = EncodeAES(data)
