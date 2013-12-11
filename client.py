@@ -10,6 +10,7 @@ import shlex
 # Helpers to encode and decode a string with base64
 EncodeAES = lambda s: base64.b64encode(s) 
 DecodeAES = lambda e: base64.b64decode(e)
+SPLIT_SYMBOL = "{}{}"
 def get_handler(arg):
     with open('private/files.txt', "r") as f:
         for line in f:
@@ -18,20 +19,31 @@ def get_handler(arg):
             # TODO check for the same names that are substring of the other
             if ind != -1:
                 key_ind = line.find("|")+1
-                hash_ind = line.rfind(":")
+                hash_ind = line.rfind("|")
                 end_ind = line.find("\n") 
                 cap = (line[key_ind:hash_ind], line[hash_ind+1:end_ind])
-                print "CAP for the file is: ", cap
                 break
-    hash = crypto.hash(crypto.hash(cap[0]))
-    print "HASH of the key: ", hash
-    cipher = get_data(hash)
-    print "RECEIVED CIPHER: ", cipher
-    valid = crypto.verify(cipher, cap)
-    print "VAlid: ", valid
+    with open('private/keys/'+arg.name+"public", "r") as f:
+        public = f.read() 
+    
+    with open('private/keys/'+arg.name+"private", "r") as f:
+        private = f.read() 
+    uri = cap[0]+":"+cap[1]
+    # access the file via the write-cap
+    cipher = get_data(uri) 
+    data_ar = cipher.split(SPLIT_SYMBOL)
+    sign = data_ar[1]
+    data = data_ar[0]
+    valid = crypto.verify_RSA(public, sign, data)
+    print "Valid: ", valid
     if valid:
-        ptext = crypto.decrypt(cipher, cap[0])   
-        print "Decrypted file is: ", ptext
+        # generate the AES decryption key and decrypt
+        salt = "a"*16
+        s = str(cap[0] + salt)
+        hashed_key = crypto.my_hash(s)
+        ptext = crypto.decrypt(data, hashed_key[:16])   
+        txt = ptext.find(SPLIT_SYMBOL)
+        print "Decrypted file is: ", ptext[:txt]
 
 def get_data(name):
     conn = httplib.HTTPConnection("localhost:8000")
@@ -46,27 +58,41 @@ def get_data(name):
     data = html[:data_end]
     data = urllib.unquote(data).decode("utf8")
     data = DecodeAES(data)
-    print "Data in the file is: "+ data
     conn.close()
     return data
     
 def put_handler(arg):
-    (cap, data) = crypto.encrypt(arg.data)
+    #(cap, data) = crypto.encrypt(arg.data)
+    # here cap is (my_hash(private_key), my_hash(public_key))
+    (private, public, cap) = crypto.generate_RSA()
+    # store the encrypted private key in the data
+    # so that upon later updates authorized users can access it
+    data = arg.data + SPLIT_SYMBOL + crypto.encrypt(private, cap[0], False)
+    # use the read key as an encryption key for the concatted data
+    salt = "a"*16
+    s = str(cap[0] + salt)
+    hashed_key = crypto.my_hash(s)
+    # encrypt the data
+    data = crypto.encrypt(data, hashed_key[:16], False)
+    # sign it with private key
+    signature = crypto.sign_data(private, data)
+    data = data +SPLIT_SYMBOL+ signature
+
     # save the cap in a private file 
     with open('private/files.txt', "a") as f:
-        c = arg.name+ "|" + cap[0] + ":" + cap[1] + "\n"
-        print "CAPABILITY: " ,c
+        c = arg.name+ "|" + cap[0] + "|" + cap[1] + "\n"
         f.write(c)
-
+    # save the private key in a file 
+    with open('private/keys/'+arg.name+"public", "w") as f:
+        f.write(public)
+    with open('private/keys/'+arg.name+"private", "w") as f:
+        f.write(private)
     # double hash the key to get the file name
-    file_name = crypto.hash(crypto.hash(cap[0]))
-    print "Storage index: ",file_name
+    file_name = crypto.my_hash(crypto.my_hash(cap[0]))
     post_data(data, file_name)  
 
 def post_data(data, name):
-    print "STORED CIPHER IS: ", data
     encoded = EncodeAES(data)
-    print "Encoded data: ", 
     params = urllib.urlencode({'data': encoded})
     headers = {"Content-type": "text/html/plain",
     "Accept": "text/plain"}
