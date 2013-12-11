@@ -7,8 +7,9 @@ from os import curdir
 from os.path import join as pjoin
 import crypto
 
-HOST_NAME = '127.0.0.1' #TODO change this eventually to amazon host or similar.
-PORT_NUMBER = 8000 # Maybe set this to 8080.
+HOST_NAME = '' #TODO change this eventually to amazon host or similar.
+PORT_NUMBER = 8080 # Maybe set this to 8080.
+DATALOCATION = "/userdata/"
 
 class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_HEAD(s):
@@ -26,14 +27,14 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         name = s.path[s.path.rfind("/")+1:]
         cap = name[:name.find(":")] 
         file_name = crypto.my_hash(cap)
-        abs_path = os.path.abspath(pjoin(curdir, file_name))
+        abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
         if os.path.exists(abs_path):
             print "READ"
             # it is read cap
             s.wfile.write("<html><head><title>Title goes here.</title></head>")
             s.wfile.write("<body><p>This is a test.</p>")
             s.wfile.write("<p>You accessed path: %s</p>" % s.path)
-            s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir, s.path))
+            s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir+DATALOCATION, s.path))
             content = ""
             with open(abs_path, 'r') as fh:
                 content =  fh.read()  
@@ -41,13 +42,13 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             s.wfile.write("</body></html>")
         else:
             file_name = crypto.my_hash(file_name)
-            abs_path = os.path.abspath(pjoin(curdir, file_name))
+            abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
             if os.path.exists(abs_path):
                 # it is a write cap
                 s.wfile.write("<html><head><title>Title goes here.</title></head>")
                 s.wfile.write("<body><p>This is a test.</p>")
                 s.wfile.write("<p>You accessed path: %s</p>" % s.path)
-                s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir, s.path))
+                s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir+DATALOCATION, s.path))
                 content = ""
                 with open(abs_path, 'r') as fh:
                     content =  fh.read()  
@@ -61,7 +62,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_POST(s):
         """Respond to a POST request."""
         file_name = s.path[s.path.rfind("/") + 1:]
-        store_path = pjoin(curdir, file_name)
+        store_path = pjoin(curdir+DATALOCATION, file_name)
             
         # before doing post, Server checks the write cap if the file does not exist
         s.wfile.write('Client: %s\n' % str(s.client_address))
