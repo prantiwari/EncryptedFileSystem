@@ -266,13 +266,15 @@ def handle_args(args, parser):
         writeToTemp(data)
         if not args.t:
             launch_editor()
-        filename = args.name
-        cap = getCapFromFilename(filename)
-        data = getDataFromTemp()
-        command = "put -d '" + data + "' -c " + cap
-        args = parser.parse_args(shlex.split(command))
-        if args.mode == "put":
-            put_handler(args)
+            filename = args.name
+            cap = getCapFromFilename(filename)
+            newdata = getDataFromTemp()
+            command = "put -d '" + newdata + "' -c " + cap
+            args = parser.parse_args(shlex.split(command))
+            if args.mode == "put":
+                put_handler(args)
+        else:
+            print data
     elif args.mode == "put":
         writeToTemp("")
         if not args.data:
