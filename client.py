@@ -125,7 +125,7 @@ def mkdir_handler(arg):
                     print "APPENDED DATA: ", data
                     # post new dir 1st 
                     new_data = {".": ":".join(cap)}
-                    new_data = json.dumps(data)
+                    new_data = json.dumps(new_data)
                     new_data = crypto.package_data(new_data, cap, private, public)
                     print_capabilities(cap)
                     post_data(new_data, capToString(cap))
@@ -138,6 +138,33 @@ def mkdir_handler(arg):
     print_capabilities(root_cap)
     post_data(data, capToString(root_cap))
     print "ROOT UPDATED"
+
+def rn_handler(arg):
+    #assume root exists
+    with open("private/root_dir.cap", 'r') as f:
+        line = f.read()
+        if line and line != "\n":
+            line = line[line.find("|")+1:].strip("\n")
+            root_cap = line.split(":")
+            root_cap[2] = root_cap[2]
+            cipher = get_data(line)
+            (data, root_private, root_public)= crypto.unpackage_data(root_cap, cipher) 
+            data = json.loads(data) 
+            print "DATA BEFORE: " + str(data)
+            data[arg.newfilename] = data[arg.filename]
+            del data[arg.filename]
+            print "DATA AFTER: " + str(data)
+            #print "APPENDED DATA: ", data
+            # post new dir 1st 
+            data = json.dumps(data)
+            new_data = crypto.package_data(data, root_cap, root_private, root_public)
+            print_capabilities(root_cap)
+            post_data(new_data, capToString(root_cap))
+            print "ROOT UPDATED"
+            return
+        else:
+            print "rn failed"
+            return
 """
 def update_root(uri, new_data):
     cipher = get_data(uri)
@@ -237,10 +264,6 @@ def ls_handler(arg):
 def rm_handler(arg):
     print arg.file
 
-def rn_handler(arg):
-    print "The old file name is " + arg.filename
-    print "The new file name is " + arg.newfilename
-
 def post_data(data, name):
     encoded = EncodeAES(data)
     params = urllib.urlencode({'data': encoded})
@@ -248,7 +271,9 @@ def post_data(data, name):
     "Accept": "text/plain"}
     conn = httplib.HTTPConnection(HOST_IP+":"+PORT)
     conn.request("POST", "/"+ name, params, headers)
+    
     response = conn.getresponse()
+
     data = response.read()
     conn.close()
 def usage():
