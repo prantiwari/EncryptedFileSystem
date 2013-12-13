@@ -274,16 +274,22 @@ def main():
         if args.mode == "put":
             put_handler(args)
     elif args.mode == "put":
-        put_handler(args)
+        writeToTemp("")
+        if not args.t:
+            launch_editor()
+            filename = args.name
+            data = getDataFromTemp()
+            command = "put -n '" + filename + "' -d '" + data + "'"
+            print command
+            args = parser.parse_args(shlex.split(command))
+            if args.mode == "put":
+                put_handler(args)
     elif args.mode == "ls":
         ls_handler(args)
     elif args.mode == "mkdir":
-        print "cd failed"
+        print "mkdir failed"
     elif args.mode == "cd":
-        print "cd failed" 
-    elif args.mode == "shell":
-        print "STARTING SHELL"
-        shell()
+        print "mkdir failed"
     else:
         usage()
 
