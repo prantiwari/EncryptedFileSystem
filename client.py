@@ -270,7 +270,7 @@ def handle_args(args, parser):
             put_handler(args)
     elif args.mode == "put":
         writeToTemp("")
-        if not args.d:
+        if not args.data:
             launch_editor()
             filename = args.name
             data = getDataFromTemp()
