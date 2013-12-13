@@ -189,6 +189,9 @@ def build_parser(parser, shellflag = False):
                             '--cap',
                             required=False,
                             help='Get a file with cap')
+    get_parser.add_argument('--t',
+                            action='store_const',
+                            const='42')
     put_parser = subparsers.add_parser('put', help='Put a file')
     put_parser.add_argument('-n',
                             '--name',
@@ -240,7 +243,8 @@ def main():
         except TypeError as e:
             print "get failed"
         writeToTemp(data)
-        launch_editor()
+        if not args.t:
+            launch_editor()
         filename = args.name
         cap = getCapFromFilename(filename)
         data = getDataFromTemp()
@@ -278,9 +282,11 @@ def shell():
             try:
                 data = get_handler(args)
             except TypeError as e:
+                print "get failed"
                 continue
             writeToTemp(data)
-            launch_editor()
+            if not args.t:
+                launch_editor()
             filename = args.name
             cap = getCapFromFilename(filename)
             data = getDataFromTemp()
