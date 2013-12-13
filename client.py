@@ -251,13 +251,8 @@ def writeToTemp(data):
     tempfile = open("tempfile.txt", "w")
     tempfile.write(data)
     tempfile.close()
-        
-def main():
 
-    parser = argparse.ArgumentParser(description='Run EncrypFS client')
-    build_parser(parser, True)
-    args = parser.parse_args()
-    print '\n\n'
+def handle_args(args, parser):
     if args.mode == "get":
         try:
             data = get_handler(args)
@@ -275,7 +270,7 @@ def main():
             put_handler(args)
     elif args.mode == "put":
         writeToTemp("")
-        if not args.t:
+        if not args.d:
             launch_editor()
             filename = args.name
             data = getDataFromTemp()
@@ -284,14 +279,24 @@ def main():
             args = parser.parse_args(shlex.split(command))
             if args.mode == "put":
                 put_handler(args)
+        else:
+            put_handler(args)
     elif args.mode == "ls":
         ls_handler(args)
     elif args.mode == "mkdir":
-        print "mkdir failed"
+        print "no mkdir"
     elif args.mode == "cd":
-        print "mkdir failed"
+        print "no cd"
     else:
         usage()
+        
+def main():
+
+    parser = argparse.ArgumentParser(description='Run EncrypFS client')
+    build_parser(parser, True)
+    args = parser.parse_args()
+    print '\n\n'
+    handle_args(args, parser)
 
 def shell():
     parser = argparse.ArgumentParser(prog='', description='Run EncrypFS client')
@@ -305,41 +310,7 @@ def shell():
         except SystemExit as e:
             continue
 
-        if args.mode == "get":
-            try:
-                data = get_handler(args)
-            except TypeError as e:
-                print "get failed"
-                continue
-            writeToTemp(data)
-            if not args.t:
-                launch_editor()
-            filename = args.name
-            cap = getCapFromFilename(filename)
-            data = getDataFromTemp()
-            command = "put -d '" + data + "' -wc " + cap
-            args = parser.parse_args(shlex.split(command))
-            if args.mode == "put":
-                put_handler(args)
-        elif args.mode == "put":
-            writeToTemp("")
-            if not args.t:
-                launch_editor()
-                filename = args.name
-                data = getDataFromTemp()
-                command = "put -n '" + filename + "' -d '" + data + "'"
-                print command
-                args = parser.parse_args(shlex.split(command))
-                if args.mode == "put":
-                    put_handler(args)
-        elif args.mode == "ls":
-            ls_handler(args)
-        elif args.mode == "mkdir":
-            continue
-        elif args.mode == "cd":
-            continue
-        else:
-            usage()
+        handle_args(args, parser)
 
 def launch_editor():
     call(["emacs", "tempfile.txt"])
