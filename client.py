@@ -19,6 +19,15 @@ PORT = "8080"
 EncodeAES = lambda s: base64.b64encode(s) 
 DecodeAES = lambda e: base64.b64decode(e)
 SPLIT_SYMBOL = "{}{}"
+
+# 4 different cap-s
+# RO is for Read-Only
+# WR is for Write/Read
+FILE_READ_CAP = "FIL-RO"
+FILE_WRITE_CAP = "FIL-WR"
+DIR_READ_CAP = "DIR-RO"
+DIR_READ_CAP = "DIR-WR"
+
 def get_handler(arg):
     public = None
     uri = ""
@@ -26,6 +35,7 @@ def get_handler(arg):
         uri = arg.cap
         cap = uri.split(":")
     else:
+        # TODO this should read the current dir to find out the URI for the file
         with open('private/files.txt', "r") as f:
             for line in f:
                 ind = line.find(arg.name)
@@ -33,13 +43,13 @@ def get_handler(arg):
                 # TODO check for the same names that are substring of the other
                 if ind != -1:
                     key_ind = line.find("|")+1
-                    hash_ind = line.rfind("|")
-                    end_ind = line.find("\n") 
-                    cap = (line[key_ind:hash_ind], line[hash_ind+1:end_ind])
-                    uri = cap[0]+":"+cap[1]
+                    line = line[key_ind:] 
+                    cap = line.split(":")
+                    uri = cap[0]+":"+cap[1]+":"+cap[2]
                     file_name = arg.name
                     abs_path = os.path.abspath(pjoin('private/keys/', file_name))
                     # check if this file was created by the user
+                    # TODO the public key should be in the file we get
                     if os.path.exists(abs_path):
                         with open('private/keys/'+arg.name+"public", "r") as f:
                             public = f.read() 
@@ -50,6 +60,7 @@ def get_handler(arg):
     sign = data_ar[1]
     data = data_ar[0]
     public = data_ar[2]
+    
     assert(data_ar[3] == crypto.my_hash(public))
 
     valid = crypto.verify_RSA(public, sign, data)
@@ -57,11 +68,10 @@ def get_handler(arg):
     if valid:
         # generate the AES decryption key and decrypt
         salt = "a"*16
-        s = str(cap[0] + salt)
+        s = str(cap[1] + salt)
         hashed_key = crypto.my_hash(s)
         ptext = crypto.decrypt(data, hashed_key[:16])   
         txt = ptext.find(SPLIT_SYMBOL)
-        print "Decrypted file is: ", ptext[:txt]
         return ptext[:txt]
 
 def get_data(name):
@@ -99,20 +109,21 @@ def put_handler(arg):
         if valid:
             # generate the AES decryption key and decrypt
             salt = "a"*16
-            s = str(cap[0] + salt)
+            s = str(cap[1] + salt)
             hashed_key = crypto.my_hash(s)
             ptext = crypto.decrypt(data, hashed_key[:16])   
             splitted = ptext.split(SPLIT_SYMBOL)
             raw_data = splitted[0]
             enc_pk = splitted[1]
-            private = crypto.decrypt(enc_pk, cap[0])
+            private = crypto.decrypt(enc_pk, cap[1])
             data = arg.data
     else:
         # here cap is (my_hash(private_key), my_hash(public_key))
         (private, public, cap) = crypto.generate_RSA()
+        cap = [FILE_WRITE_CAP, cap[0], cap[1]]
         # save the cap in a private file 
         with open('private/files.txt', "a") as f:
-            c = arg.name+ "|" + cap[0] + "|" + cap[1] + "\n"
+            c = arg.name+ "|" + cap[0] + ":" + cap[1] + ":" + cap[2] + "\n"
             f.write(c)
         # save the private key in a file 
         with open('private/keys/'+arg.name+"public", "w") as f:
@@ -121,10 +132,10 @@ def put_handler(arg):
             f.write(private)
         data = arg.data
     # store the encrypted private key in the data
-    data = data + SPLIT_SYMBOL + crypto.encrypt(private, cap[0], False)
+    data = data + SPLIT_SYMBOL + crypto.encrypt(private, cap[1], False)
     # use the read key as an encryption key for the concatted data
     salt = "a"*16
-    s = str(cap[0] + salt)
+    s = str(cap[1] + salt)
     hashed_key = crypto.my_hash(s)
     # encrypt the data
     data = crypto.encrypt(data, hashed_key[:16], False)
@@ -135,11 +146,15 @@ def put_handler(arg):
     data = data +SPLIT_SYMBOL+ signature + SPLIT_SYMBOL + public + SPLIT_SYMBOL + crypto.my_hash(public)
 
     # double hash the key to get the file name
-    file_name = crypto.my_hash(crypto.my_hash(cap[0]))
-    print "Write cap for the file is: %s: %s" %( cap[0], cap[1])
-    print "Read cap for the file is: %s: %s" %( crypto.my_hash(cap[0])[:16], cap[1])
+    file_name = crypto.my_hash(crypto.my_hash(cap[1]))
+    write = ":".join(map(str, cap)) 
+    print "Write cap for the file is: %s" % write
+    cap[0] = FILE_READ_CAP
+    cap[1] = crypto.my_hash(cap[1])[:16]
+    read = ":".join(map(str, cap)) 
+    print "Read cap for the file is: %s" % read
     print "You can access the capability in private/files.txt"
-    post_data(data, cap[0] + ":" + cap[1])
+    post_data(data, write)
 
 def ls_handler(arg):
     f = open("private/files.txt")
@@ -215,9 +230,12 @@ def build_parser(parser, shellflag = False):
 def getCapFromFilename(name):
     with open("private/files.txt") as f:
         for line in f:
-            info = line.split('|')
-            if info[0] == name:
-                return info[1] + ":" + info[2]
+            if line != "\n": 
+                print "LINE : ", line
+                info = line.split("|")
+                cap = info[1].split(':')
+                if info[0] == name:
+                    return ":".join(cap)
 
 def getDataFromTemp():
     data = ""
