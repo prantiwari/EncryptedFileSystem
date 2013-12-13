@@ -73,6 +73,7 @@ def get_handler(arg):
         ptext = crypto.decrypt(data, hashed_key[:16])   
         txt = ptext.find(SPLIT_SYMBOL)
         return ptext[:txt]
+    return None
 
 def get_data(name):
     conn = httplib.HTTPConnection(HOST_IP+":" + PORT)
@@ -217,7 +218,7 @@ def build_parser(parser, shellflag = False):
                             required=False,
                             help='Specify file content')
                             
-    put_parser.add_argument('-wc',
+    put_parser.add_argument('-c',
                             '--writecap',
                             required=False,
                             help='Put a file with cap')
@@ -258,13 +259,17 @@ def handle_args(args, parser):
             data = get_handler(args)
         except TypeError as e:
             print "get failed"
+            return None
+        if not data:
+            print "INVALID/CORRUPTED DATA"
+            return None
         writeToTemp(data)
         if not args.t:
             launch_editor()
         filename = args.name
         cap = getCapFromFilename(filename)
         data = getDataFromTemp()
-        command = "put -d '" + data + "' -wc " + cap
+        command = "put -d '" + data + "' -c " + cap
         args = parser.parse_args(shlex.split(command))
         if args.mode == "put":
             put_handler(args)
