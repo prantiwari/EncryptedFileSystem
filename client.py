@@ -8,6 +8,7 @@ import sys
 import shlex
 import os
 import subprocess
+import json
 from os import curdir
 from os.path import join as pjoin
 from subprocess import call
@@ -26,8 +27,9 @@ SPLIT_SYMBOL = "{}{}"
 FILE_READ_CAP = "FIL-RO"
 FILE_WRITE_CAP = "FIL-WR"
 DIR_READ_CAP = "DIR-RO"
-DIR_READ_CAP = "DIR-WR"
+DIR_WRITE_CAP = "DIR-WR"
 
+# TODO Convert all file read to json
 def get_handler(arg):
     public = None
     uri = ""
@@ -89,7 +91,38 @@ def get_data(name):
     data = DecodeAES(data)
     conn.close()
     return data
-    
+
+def mkdir_handler(arg):
+    if arg.path:
+        # TODO do recursive get on the path /a/b/c/
+        # TODO assert somehow that the path exists on the server
+        return
+    else:
+        if arg.root:
+            # create root dir
+            (private, public, cap) = crypto.generate_RSA()
+            cap = [DIR_WRITE_CAP, cap[0], cap[1]]
+            data = {".": ":".join(cap)}
+            print "CAP: ", cap
+            with open("private/root_dir.cap", 'w') as f:
+                c = ".|" + capToString(cap) + "\n"
+                f.write(c)
+        else:
+            # assume the root exists 
+            with open("private/root_dir.cap", 'r') as f:
+                line = f.read()
+                if line and line != "\n":
+                    line = line[line.find("|")+1:]
+                    cap = line.split(":")
+                    print "CAP: ", cap
+                    cipher = get_data(line)
+                    (data, private, public)= crypto.unpackage_data(cipher) 
+                else:
+                    return
+    data = json.dumps(data) 
+    data = crypto.package_data(data, cap, private, public)
+    print_capabilities(cap)
+    post_data(data, capToString(cap))
 def put_handler(arg):
     if arg.writecap:
         # putting with a cap requires
@@ -98,63 +131,44 @@ def put_handler(arg):
         # 3) Signing the encryption of the updated data with the private key
         cap = arg.writecap.split(":")
         cipher = get_data(arg.writecap) 
-        data_ar = cipher.split(SPLIT_SYMBOL)
-        sign = data_ar[1]
-        data = data_ar[0]
-        public = data_ar[2]
-        assert(data_ar[3] == crypto.my_hash(public))
-
-        valid = crypto.verify_RSA(public, sign, data)
-        print "Valid: ", valid
-        if valid:
-            # generate the AES decryption key and decrypt
-            salt = "a"*16
-            s = str(cap[1] + salt)
-            hashed_key = crypto.my_hash(s)
-            ptext = crypto.decrypt(data, hashed_key[:16])   
-            splitted = ptext.split(SPLIT_SYMBOL)
-            raw_data = splitted[0]
-            enc_pk = splitted[1]
-            private = crypto.decrypt(enc_pk, cap[1])
-            data = arg.data
+        
+        (data, private, public) = crypto.unpackage_data(cipher)
     else:
         # here cap is (my_hash(private_key), my_hash(public_key))
         (private, public, cap) = crypto.generate_RSA()
         cap = [FILE_WRITE_CAP, cap[0], cap[1]]
         # save the cap in a private file 
         with open('private/files.txt', "a") as f:
-            c = arg.name+ "|" + cap[0] + ":" + cap[1] + ":" + cap[2] + "\n"
+            c = arg.name+ "|" + capToString(cap)+ "\n"
             f.write(c)
+        # TODO get rid of key storage by making get to the server via URI after createion
         # save the private key in a file 
         with open('private/keys/'+arg.name+"public", "w") as f:
             f.write(public)
         with open('private/keys/'+arg.name+"private", "w") as f:
             f.write(private)
         data = arg.data
-    # store the encrypted private key in the data
-    data = data + SPLIT_SYMBOL + crypto.encrypt(private, cap[1], False)
-    # use the read key as an encryption key for the concatted data
-    salt = "a"*16
-    s = str(cap[1] + salt)
-    hashed_key = crypto.my_hash(s)
-    # encrypt the data
-    data = crypto.encrypt(data, hashed_key[:16], False)
-    # sign it with private key
-    signature = crypto.sign_data(private, data)
-    # FINAL DATA IS
-    # enc_data | signature | public_key | hash(public_key)
-    data = data +SPLIT_SYMBOL+ signature + SPLIT_SYMBOL + public + SPLIT_SYMBOL + crypto.my_hash(public)
+    data = crypto.package_data(data, cap, private, public)
+    print_capabilities(cap)
+    post_data(data, capToString(cap))
 
+def print_capabilities(cap):
+    if cap[0] == FILE_WRITE_CAP:
+        t = "file"
+        r = FILE_READ_CAP
+    elif cap[0] == DIR_WRITE_CAP:
+        t = "directory"
+        r = DIR_READ_CAP
+    else:
+        t = "unknown"
+        r = "unknown"
     # double hash the key to get the file name
     file_name = crypto.my_hash(crypto.my_hash(cap[1]))
     write = ":".join(map(str, cap)) 
-    print "Write cap for the file is: %s" % write
-    cap[0] = FILE_READ_CAP
+    print "Write cap for the %s is: %s" % (t, write)
     cap[1] = crypto.my_hash(cap[1])[:16]
     read = ":".join(map(str, cap)) 
-    print "Read cap for the file is: %s" % read
-    print "You can access the capability in private/files.txt"
-    post_data(data, write)
+    print "Read cap for the %s is: %s" % (r, read)
 
 def ls_handler(arg):
     f = open("private/files.txt")
@@ -224,14 +238,25 @@ def build_parser(parser, shellflag = False):
     ls_parser.add_argument('--v',
                            action='store_const',
                            const='42')
+    
+    mkdir_parser = subparsers.add_parser('mkdir', help='Make a directory')
+    mkdir_parser.add_argument('-p',
+                              '--path',
+                              required=False,
+                              help='Directory in which to create the directory')
+    mkdir_parser.add_argument('-r',
+                              '--root',
+                              required=False,
+                              action='store_true',
+                              default=False,
+                              help='Create root directory')
     if shellflag:
         shell_parser = subparsers.add_parser('shell', help='start shell')
-
+# helpers
 def getCapFromFilename(name):
     with open("private/files.txt") as f:
         for line in f:
             if line != "\n": 
-                print "LINE : ", line
                 info = line.split("|")
                 cap = info[1].split(':')
                 if info[0] == name:
@@ -248,7 +273,10 @@ def writeToTemp(data):
     tempfile = open("tempfile.txt", "w")
     tempfile.write(data)
     tempfile.close()
-        
+
+def capToString(cap):
+    return ":".join(cap)
+
 def main():
 
     parser = argparse.ArgumentParser(description='Run EncrypFS client')
@@ -275,7 +303,7 @@ def main():
     elif args.mode == "ls":
         ls_handler(args)
     elif args.mode == "mkdir":
-        print "cd failed"
+        mkdir_handler(args)
     elif args.mode == "cd":
         print "cd failed" 
     elif args.mode == "shell":
@@ -317,7 +345,7 @@ def shell():
         elif args.mode == "ls":
             ls_handler(args)
         elif args.mode == "mkdir":
-            continue
+            mkdir_handler(args)
         elif args.mode == "cd":
             continue
         else:
