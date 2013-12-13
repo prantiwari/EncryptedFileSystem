@@ -214,12 +214,16 @@ def build_parser(parser, shellflag = False):
                             help='Put a file with name')
     put_parser.add_argument('-d',
                             '--data',
-                            required=True,
+                            required=False,
                             help='Specify file content')
+                            
     put_parser.add_argument('-wc',
                             '--writecap',
                             required=False,
                             help='Put a file with cap')
+    put_parser.add_argument('--t',
+                            action='store_const',
+                            const='42')                        
     ls_parser = subparsers.add_parser('ls', help='display names of your files')
     ls_parser.add_argument('--v',
                            action='store_const',
@@ -230,12 +234,11 @@ def build_parser(parser, shellflag = False):
 def getCapFromFilename(name):
     with open("private/files.txt") as f:
         for line in f:
-            if line != "\n": 
-                print "LINE : ", line
-                info = line.split("|")
-                cap = info[1].split(':')
-                if info[0] == name:
-                    return ":".join(cap)
+            spl = line.split('|')
+            fn = spl[0]
+            cap = spl[1]
+            if fn == name:
+                return cap
 
 def getDataFromTemp():
     data = ""
@@ -313,7 +316,16 @@ def shell():
             if args.mode == "put":
                 put_handler(args)
         elif args.mode == "put":
-            put_handler(args)
+            writeToTemp("")
+            if not args.t:
+                launch_editor()
+                filename = args.name
+                data = getDataFromTemp()
+                command = "put -n '" + filename + "' -d '" + data + "'"
+                print command
+                args = parser.parse_args(shlex.split(command))
+                if args.mode == "put":
+                    put_handler(args)
         elif args.mode == "ls":
             ls_handler(args)
         elif args.mode == "mkdir":

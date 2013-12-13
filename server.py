@@ -88,7 +88,9 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         public = data_ar[2]
          
         cap = s.path[s.path.rfind("/") + 1:].split(":")
-        h = crypto.my_hash(public) 
+        h = crypto.my_hash(public)
+        print cap
+        print data_ar
         if h != data_ar[3] or h[:16] != cap[2]:
             send_error(s)
             return
