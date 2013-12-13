@@ -76,7 +76,7 @@ fileInfo=$(python client.py put -n "mod.txt" -d "asdfasdf")
 
 echo $fileInfo
 
-wc=$(echo $fileInfo | cut -d: -f2)
+wc="$(echo $fileInfo | cut -dR -f1 | cut -ds -f2)"
 
 echo $wc
 
@@ -87,7 +87,7 @@ newFile=$(python client.py get -n "mod.txt")
 echo $newFile
 
 if [ "$getInfo" == "$newFile" ] 
-then 
+then
 echo "Success"
 fi
 
