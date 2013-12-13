@@ -11,7 +11,7 @@ from os import curdir
 from os.path import join as pjoin
 
 # Helpers to encode and decode a string with base64
-HOST_IP = "54.201.152.172"
+HOST_IP = "localhost"
 PORT = "8080"
 EncodeAES = lambda s: base64.b64encode(s) 
 DecodeAES = lambda e: base64.b64decode(e)
