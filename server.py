@@ -29,8 +29,8 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.end_headers()
         # determine the capability: write, read, or none
         name = s.path[s.path.rfind("/")+1:]
-        cap = name[:name.find(":")] 
-        file_name = crypto.my_hash(cap)
+        cap = name.split(":") 
+        file_name = crypto.my_hash(cap[1])
         print "file name: ", file_name
         print "cap: ", cap
         abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
@@ -89,7 +89,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
          
         cap = s.path[s.path.rfind("/") + 1:].split(":")
         h = crypto.my_hash(public) 
-        if h != data_ar[3] or h[:16] != cap[1]:
+        if h != data_ar[3] or h[:16] != cap[2]:
             send_error(s)
             return
         valid = crypto.verify_RSA(public, sign, data)
@@ -99,14 +99,17 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return
         # allow write if the file does not exist or
         # when you present write cap
-        file_name = crypto.my_hash(crypto.my_hash(cap[0]))
+        file_name = crypto.my_hash(crypto.my_hash(cap[1]))
         store_path = pjoin(curdir+DATALOCATION, file_name)
+        print "STORE PATH: ", store_path
         # TODO with the directory structure, notify the server of the created files
         # so that it can check if this store_path is ever created
-        if os.path.exists(store_path): 
+        if os.path.exists(store_path):
+            print "PATH EXISTS" 
             with open(store_path, 'w') as fh:
                 fh.write(decoded)
         else:
+            print "NO PATH" 
             with open(store_path, 'w') as fh:
                 fh.write(decoded)
             
