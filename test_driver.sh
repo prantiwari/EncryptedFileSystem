@@ -37,10 +37,30 @@ fi
 
 #---------------------------------------------------
 
-echo "Test #3: Write to file of which I do not have access"
+echo "Test #3: Try to read file without cap"
+
+python client.py put -n "poiu.txt" -d "asdfasdf"
+
+OUTPUT=$(python client.py get -n "poiu.txt")
+
+echo $OUTPUT
+
+#switch users
+
+sudo su Tito
+
+read=$(python client.py get -n "poiu.txt")
+
+#echo $read
+
+#echo $OUTPUT | cut -d: -f3
+
+#if [ "$read" == "$
+
+#exit
 
 
-
+echo $read
 #---------------------------------------------------
 
 echo "Test #4: Make sure people with corrent capabilites can access"
@@ -51,3 +71,23 @@ echo "Test #4: Make sure people with corrent capabilites can access"
 #--------------------------------------------------
 
 echo "Test #5: File has been modified"
+
+fileInfo=$(python client.py put -n "mod.txt" -d "asdfasdf")
+
+echo $fileInfo
+
+wc=$(echo $fileInfo | cut -d: -f2)
+
+echo $wc
+
+python client.py put -wc $wc -d ";lkj;lkj"
+
+newFile=$(python client.py get -n "mod.txt")
+
+echo $newFile
+
+if [ "$getInfo" == "$newFile" ] 
+then 
+echo "Success"
+fi
+

@@ -137,7 +137,7 @@ def put_handler(arg):
     # double hash the key to get the file name
     file_name = crypto.my_hash(crypto.my_hash(cap[0]))
     print "Write cap for the file is: %s: %s" %( cap[0], cap[1])
-    print "Read cap for the file is: %s: %s" %( crypto.my_hash(cap[0]), cap[1])
+    print "Read cap for the file is: %s: %s" %( crypto.my_hash(cap[0])[:16], cap[1])
     print "You can access the capability in private/files.txt"
     post_data(data, cap[0] + ":" + cap[1])
 

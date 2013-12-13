@@ -30,7 +30,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # determine the capability: write, read, or none
         name = s.path[s.path.rfind("/")+1:]
         cap = name[:name.find(":")] 
-        file_name = crypto.my_hash(cap)
+        file_name = crypto.my_hash(cap)[:16]
         print "file name: ", file_name
         print "cap: ", cap
         abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
