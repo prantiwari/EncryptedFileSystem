@@ -233,6 +233,14 @@ def ls_handler(arg):
     # TODO pretty print data
     data = json.loads(data) 
     print data.keys()
+
+def rm_handler(arg):
+    print arg.file
+
+def rn_handler(arg):
+    print "The old file name is " + arg.filename
+    print "The new file name is " + arg.newfilename
+
 def post_data(data, name):
     encoded = EncodeAES(data)
     params = urllib.urlencode({'data': encoded})
@@ -314,6 +322,13 @@ def build_parser(parser, shellflag = False):
                               action='store_true',
                               default=False,
                               help='Create root directory')
+    rm_parser = subparsers.add_parser('rm', help='remove a file')
+    rm_parser.add_argument('file')
+    
+    rn_parser = subparsers.add_parser('rn', help='rename a file')
+    rn_parser.add_argument('filename')
+    rn_parser.add_argument('newfilename')
+                        
     if shellflag:
         shell_parser = subparsers.add_parser('shell', help='start shell')
 # helpers
@@ -375,12 +390,19 @@ def handle_args(args, parser):
                 put_handler(args)
         else:
             put_handler(args)
+    elif args.mode == "shell":
+        shell()
     elif args.mode == "ls":
         ls_handler(args)
     elif args.mode == "mkdir":
         mkdir_handler(args)
     elif args.mode == "cd":
         print "no cd"
+    elif args.mode == "rm":
+        rm_handler(args)
+    elif args.mode == "rn":
+        rn_handler(args)
+        
     else:
         usage()
         
