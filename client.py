@@ -7,11 +7,14 @@ import base64
 import sys
 import shlex
 import os
+import subprocess
 from os import curdir
 from os.path import join as pjoin
+from subprocess import call
 
 # Helpers to encode and decode a string with base64
-HOST_IP = "54.201.152.172"
+#HOST_IP = "54.201.152.172"
+HOST_IP = "localhost"
 PORT = "8080"
 EncodeAES = lambda s: base64.b64encode(s) 
 DecodeAES = lambda e: base64.b64decode(e)
@@ -59,6 +62,7 @@ def get_handler(arg):
         ptext = crypto.decrypt(data, hashed_key[:16])   
         txt = ptext.find(SPLIT_SYMBOL)
         print "Decrypted file is: ", ptext[:txt]
+        return ptext[:txt]
 
 def get_data(name):
     conn = httplib.HTTPConnection(HOST_IP+":" + PORT)
@@ -102,7 +106,7 @@ def put_handler(arg):
             raw_data = splitted[0]
             enc_pk = splitted[1]
             private = crypto.decrypt(enc_pk, cap[0])
-            data = raw_data + arg.data
+            data = arg.data
     else:
         # here cap is (my_hash(private_key), my_hash(public_key))
         (private, public, cap) = crypto.generate_RSA()
@@ -204,6 +208,25 @@ def build_parser(parser, shellflag = False):
                            const='42')
     if shellflag:
         shell_parser = subparsers.add_parser('shell', help='start shell')
+
+def getCapFromFilename(name):
+    with open("private/files.txt") as f:
+        for line in f:
+            info = line.split('|')
+            if info[0] == name:
+                return info[1] + ":" + info[2]
+
+def getDataFromTemp():
+    data = ""
+    with open("tempfile.txt") as f:
+        for line in f:
+            data += line
+    return data
+
+def writeToTemp(data):
+    tempfile = open("tempfile.txt", "w")
+    tempfile.write(data)
+    tempfile.close()
         
 def main():
 
@@ -212,11 +235,27 @@ def main():
     args = parser.parse_args()
     print '\n\n'
     if args.mode == "get":
-        get_handler(args)
+        try:
+            data = get_handler(args)
+        except TypeError as e:
+            print "get failed"
+        writeToTemp(data)
+        launch_editor()
+        filename = args.name
+        cap = getCapFromFilename(filename)
+        data = getDataFromTemp()
+        command = "put -d '" + data + "' -wc " + cap
+        args = parser.parse_args(shlex.split(command))
+        if args.mode == "put":
+            put_handler(args)
     elif args.mode == "put":
         put_handler(args)
     elif args.mode == "ls":
         ls_handler(args)
+    elif args.mode == "mkdir":
+        print "cd failed"
+    elif args.mode == "cd":
+        print "cd failed" 
     elif args.mode == "shell":
         print "STARTING SHELL"
         shell()
@@ -236,7 +275,19 @@ def shell():
             continue
 
         if args.mode == "get":
-            get_handler(args)
+            try:
+                data = get_handler(args)
+            except TypeError as e:
+                continue
+            writeToTemp(data)
+            launch_editor()
+            filename = args.name
+            cap = getCapFromFilename(filename)
+            data = getDataFromTemp()
+            command = "put -d '" + data + "' -wc " + cap
+            args = parser.parse_args(shlex.split(command))
+            if args.mode == "put":
+                put_handler(args)
         elif args.mode == "put":
             put_handler(args)
         elif args.mode == "ls":
@@ -247,6 +298,9 @@ def shell():
             continue
         else:
             usage()
+
+def launch_editor():
+    call(["emacs", "tempfile.txt"])
 
 if __name__ == '__main__':
     main()
