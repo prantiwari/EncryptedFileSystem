@@ -17,6 +17,13 @@ EncodeAES = lambda s: base64.b64encode(s)
 DecodeAES = lambda e: base64.b64decode(e)
 SPLIT_SYMBOL = "{}{}"
 
+# 4 different cap-s
+# RO is for Read-Only
+# WR is for Write/Read
+FILE_READ_CAP = "FIL-RO"
+FILE_WRITE_CAP = "FIL-WR"
+DIR_READ_CAP = "DIR-RO"
+DIR_WRITE_CAP = "DIR-WR"
 class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_HEAD(s):
         s.send_response(200)
@@ -30,16 +37,31 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.end_headers()
         # determine the capability: write, read, or none
         name = s.path[s.path.rfind("/")+1:]
+        print "name: ", name
         cap = name.split(":") 
-        file_name = crypto.my_hash(cap[1])
+        print "cap: ", cap
+        r = False
+        if cap[0] ==  FILE_READ_CAP or cap[0] == DIR_READ_CAP:
+            print "READ"
+            r = True
+            file_name = crypto.my_hash(cap[1][:16])
+        elif cap[0] ==  FILE_WRITE_CAP or cap[0] == DIR_WRITE_CAP:
+            print "WRITE"
+            file_name = crypto.my_hash(crypto.my_hash(cap[1][:16])[:16])
+        else:
+            
+            print "NOTHING"
+            file_name = ""
         print "file name: ", file_name
         print "cap: ", cap
         abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
         if os.path.exists(abs_path):
-            # it is read cap
-            print "READ"
-            s.wfile.write("<html><head><title>READ CAP PRESENTED</title></head>")
-            s.wfile.write("<body><p>You do not have write privileges.</p>")
+            s.wfile.write("<html><head><title>%s CAP PRESENTED</title></head>" % cap[0])
+            if r:
+                s.wfile.write("<body><p>You do not have write privileges.</p>")
+            else:
+                s.wfile.write("<body><p>Thanks for updating the file</p>")
+                
             s.wfile.write("<p>You accessed path: %s</p>" % s.path)
             s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir+DATALOCATION, s.path))
             content = ""
@@ -48,26 +70,10 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             s.wfile.write("<p>File content: data=%s</p>" % EncodeAES(content))
             s.wfile.write("</body></html>")
         else:
-            file_name = crypto.my_hash(file_name)
-            abs_path = os.path.abspath(pjoin(curdir+DATALOCATION, file_name))
-            if os.path.exists(abs_path):
-                # it is a write cap
-                print "WRITE"
-                s.wfile.write("<html><head><title>WRITE CAP PRESENTED</title></head>")
-                s.wfile.write("<body><p>Thanks for updating the file</p>")
-                s.wfile.write("<p>You accessed path: %s</p>" % s.path)
-                s.wfile.write("<p>File exists: %s</p>" % pjoin(curdir+DATALOCATION, s.path))
-                content = ""
-                with open(abs_path, 'r') as fh:
-                    content =  fh.read()  
-                s.wfile.write("<p>File content: data=%s</p>" % EncodeAES(content))
-                s.wfile.write("</body></html>")
-            else:
-                # it is nothing
-                print "NOTHING"
-                s.wfile.write("<html><head><title> ERROR </title></head>")
-                s.wfile.write("<body><p>Can't access</p>")
-                s.wfile.write("</body></html>")
+            # it is nothing
+            s.wfile.write("<html><head><title> ERROR </title></head>")
+            s.wfile.write("<body><p>Can't access</p>")
+            s.wfile.write("</body></html>")
     def do_POST(s):
         
         """Respond to a POST request."""
@@ -89,7 +95,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         public = data_ar[2]
          
         cap = s.path[s.path.rfind("/") + 1:].split(":")
-        h = crypto.my_hash(public) 
+        h = crypto.my_hash(public)
         if h != data_ar[3] or h[:16] != cap[2]:
             send_error(s)
             return
@@ -100,7 +106,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return
         # allow write if the file does not exist or
         # when you present write cap
-        file_name = crypto.my_hash(crypto.my_hash(cap[1]))
+        file_name = crypto.my_hash(crypto.my_hash(cap[1])[:16])
         store_path = pjoin(curdir+DATALOCATION, file_name)
         print "STORE PATH: ", store_path
         # TODO with the directory structure, notify the server of the created files

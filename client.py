@@ -47,7 +47,7 @@ def get_handler(arg):
                     key_ind = line.find("|")+1
                     line = line[key_ind:] 
                     cap = line.split(":")
-                    uri = cap[0]+":"+cap[1]+":"+cap[2]
+                    uri = capToString(cap)
                     file_name = arg.name
                     abs_path = os.path.abspath(pjoin('private/keys/', file_name))
                     # check if this file was created by the user
@@ -62,19 +62,21 @@ def get_handler(arg):
     sign = data_ar[1]
     data = data_ar[0]
     public = data_ar[2]
-    
-    assert(data_ar[3] == crypto.my_hash(public))
-
-    valid = crypto.verify_RSA(public, sign, data)
-    print "Valid: ", valid
-    if valid:
-        # generate the AES decryption key and decrypt
-        salt = "a"*16
-        s = str(cap[1] + salt)
-        hashed_key = crypto.my_hash(s)
-        ptext = crypto.decrypt(data, hashed_key[:16])   
-        txt = ptext.find(SPLIT_SYMBOL)
-        return ptext[:txt]
+    try:
+        assert(data_ar[3] == crypto.my_hash(public))
+        valid = crypto.verify_RSA(public, sign, data)
+        print "Valid: ", valid
+        assert(valid)
+    except AssertionError  as e:
+        print "Data invalid"
+        return
+    # generate the AES decryption key and decrypt
+    salt = "a"*16
+    s = str(cap[1] + salt)
+    hashed_key = crypto.my_hash(s)
+    ptext = crypto.decrypt(data, hashed_key[:16])   
+    txt = ptext.find(SPLIT_SYMBOL)
+    return ptext[:txt]
 
 def get_data(name):
     conn = httplib.HTTPConnection(HOST_IP+":" + PORT)
@@ -100,29 +102,43 @@ def mkdir_handler(arg):
     else:
         if arg.root:
             # create root dir
-            (private, public, cap) = crypto.generate_RSA()
-            cap = [DIR_WRITE_CAP, cap[0], cap[1]]
-            data = {".": ":".join(cap)}
-            print "CAP: ", cap
+            (root_private, root_public, cap) = crypto.generate_RSA()
+            root_cap = [DIR_WRITE_CAP, cap[0], cap[1]]
+            data = {".": ":".join(root_cap)}
+            print "ROOT CAP: ", root_cap
             with open("private/root_dir.cap", 'w') as f:
-                c = ".|" + capToString(cap) + "\n"
+                c = arg.name + "|" + capToString(root_cap) + "\n"
                 f.write(c)
         else:
             # assume the root exists 
             with open("private/root_dir.cap", 'r') as f:
                 line = f.read()
                 if line and line != "\n":
-                    line = line[line.find("|")+1:]
-                    cap = line.split(":")
-                    print "CAP: ", cap
+                    line = line[line.find("|")+1:].strip("\n")
+                    root_cap = line.split(":")
+                    root_cap[2] = root_cap[2]
                     cipher = get_data(line)
-                    (data, private, public)= crypto.unpackage_data(cipher) 
+                    (data, root_private, root_public)= crypto.unpackage_data(root_cap, cipher) 
+                    data = json.loads(data) 
+                    (private, public, cap) = crypto.generate_RSA()
+                    cap = [DIR_WRITE_CAP, cap[0], cap[1]]
+                    data[arg.name] =  ":".join(cap)
+                    print "APPENDED DATA: ", data
+                    # post new dir 1st 
+                    new_data = {".": ":".join(cap)}
+                    new_data = json.dumps(data)
+                    new_data = crypto.package_data(new_data, cap, private, public)
+                    print_capabilities(cap)
+                    post_data(new_data, capToString(cap))
+                    print "NEW DIR POSTED"
                 else:
                     return
+    # post root dir data 
     data = json.dumps(data) 
-    data = crypto.package_data(data, cap, private, public)
-    print_capabilities(cap)
-    post_data(data, capToString(cap))
+    data = crypto.package_data(data, root_cap, root_private, root_public)
+    print_capabilities(root_cap)
+    post_data(data, capToString(root_cap))
+    print "ROOT UPDATED"
 def put_handler(arg):
     if arg.writecap:
         # putting with a cap requires
@@ -132,7 +148,7 @@ def put_handler(arg):
         cap = arg.writecap.split(":")
         cipher = get_data(arg.writecap) 
         
-        (data, private, public) = crypto.unpackage_data(cipher)
+        (data, private, public) = crypto.unpackage_data(cap, cipher)
     else:
         # here cap is (my_hash(private_key), my_hash(public_key))
         (private, public, cap) = crypto.generate_RSA()
@@ -163,22 +179,32 @@ def print_capabilities(cap):
         t = "unknown"
         r = "unknown"
     # double hash the key to get the file name
-    file_name = crypto.my_hash(crypto.my_hash(cap[1]))
-    write = ":".join(map(str, cap)) 
+    h = crypto.my_hash(cap[1])[:16]
+    file_name = crypto.my_hash(h)
+    write = capToString(cap) 
     print "Write cap for the %s is: %s" % (t, write)
-    cap[1] = crypto.my_hash(cap[1])[:16]
-    read = ":".join(map(str, cap)) 
-    print "Read cap for the %s is: %s" % (r, read)
+    read = capToString(cap)
+    print "Read cap for the %s is: %s" % (t, capToString((r, h, cap[2])))
 
 def ls_handler(arg):
-    f = open("private/files.txt")
-    for line in f:
-        if arg.v:
-            print line
-        else:
-            print line.split("|")[0]
-    f.close()
-
+    # ls path by getting the file content
+    if arg.path:
+        return      
+    else:
+        # ls root 
+        with open("private/root_dir.cap", 'r') as f:
+            line = f.read()
+            if line and line != "\n":
+                line = line[line.find("|")+1:]
+                cap = line.split(":")
+                print "CAP: ", cap
+                cipher = get_data(line)
+                (data, private, public)= crypto.unpackage_data(cap, cipher) 
+            else:
+                return
+    # TODO pretty print data
+    data = json.loads(data) 
+    print data.keys()
 def post_data(data, name):
     encoded = EncodeAES(data)
     params = urllib.urlencode({'data': encoded})
@@ -187,7 +213,6 @@ def post_data(data, name):
     conn = httplib.HTTPConnection(HOST_IP+":"+PORT)
     conn.request("POST", "/"+ name, params, headers)
     response = conn.getresponse()
-    print response.status, response.reason
     data = response.read()
     conn.close()
 def usage():
@@ -228,22 +253,33 @@ def build_parser(parser, shellflag = False):
                             help='Put a file with name')
     put_parser.add_argument('-d',
                             '--data',
-                            required=True,
+                            required=False,
                             help='Specify file content')
-    put_parser.add_argument('-wc',
+                            
+    put_parser.add_argument('-c',
                             '--writecap',
                             required=False,
                             help='Put a file with cap')
+    put_parser.add_argument('--t',
+                            action='store_const',
+                            const='42')                        
     ls_parser = subparsers.add_parser('ls', help='display names of your files')
     ls_parser.add_argument('--v',
                            action='store_const',
                            const='42')
-    
+    ls_parser.add_argument('-p',
+                              '--path',
+                              required=False,
+                              help='Directory to list')
     mkdir_parser = subparsers.add_parser('mkdir', help='Make a directory')
     mkdir_parser.add_argument('-p',
                               '--path',
                               required=False,
                               help='Directory in which to create the directory')
+    mkdir_parser.add_argument('-n',
+                            '--name',
+                            required=True,
+                            help='Dir name')
     mkdir_parser.add_argument('-r',
                               '--root',
                               required=False,
@@ -256,11 +292,11 @@ def build_parser(parser, shellflag = False):
 def getCapFromFilename(name):
     with open("private/files.txt") as f:
         for line in f:
-            if line != "\n": 
-                info = line.split("|")
-                cap = info[1].split(':')
-                if info[0] == name:
-                    return ":".join(cap)
+            spl = line.split('|')
+            fn = spl[0]
+            cap = spl[1]
+            if fn == name:
+                return cap
 
 def getDataFromTemp():
     data = ""
@@ -277,40 +313,56 @@ def writeToTemp(data):
 def capToString(cap):
     return ":".join(cap)
 
-def main():
 
-    parser = argparse.ArgumentParser(description='Run EncrypFS client')
-    build_parser(parser, True)
-    args = parser.parse_args()
-    print '\n\n'
+def handle_args(args, parser):
     if args.mode == "get":
         try:
             data = get_handler(args)
         except TypeError as e:
             print "get failed"
+            return None
+        if not data:
+            print "INVALID/CORRUPTED DATA"
+            return None
         writeToTemp(data)
         if not args.t:
             launch_editor()
         filename = args.name
         cap = getCapFromFilename(filename)
         data = getDataFromTemp()
-        command = "put -d '" + data + "' -wc " + cap
+        command = "put -d '" + data + "' -c " + cap
         args = parser.parse_args(shlex.split(command))
         if args.mode == "put":
             put_handler(args)
     elif args.mode == "put":
-        put_handler(args)
+        writeToTemp("")
+        if not args.data:
+            launch_editor()
+            filename = args.name
+            data = getDataFromTemp()
+            command = "put -n '" + filename + "' -d '" + data + "'"
+            print command
+            args = parser.parse_args(shlex.split(command))
+            if args.mode == "put":
+                put_handler(args)
+        else:
+            put_handler(args)
     elif args.mode == "ls":
         ls_handler(args)
     elif args.mode == "mkdir":
         mkdir_handler(args)
     elif args.mode == "cd":
-        print "cd failed" 
-    elif args.mode == "shell":
-        print "STARTING SHELL"
-        shell()
+        print "no cd"
     else:
         usage()
+        
+def main():
+
+    parser = argparse.ArgumentParser(description='Run EncrypFS client')
+    build_parser(parser, True)
+    args = parser.parse_args()
+    print '\n\n'
+    handle_args(args, parser)
 
 def shell():
     parser = argparse.ArgumentParser(prog='', description='Run EncrypFS client')
@@ -324,32 +376,7 @@ def shell():
         except SystemExit as e:
             continue
 
-        if args.mode == "get":
-            try:
-                data = get_handler(args)
-            except TypeError as e:
-                print "get failed"
-                continue
-            writeToTemp(data)
-            if not args.t:
-                launch_editor()
-            filename = args.name
-            cap = getCapFromFilename(filename)
-            data = getDataFromTemp()
-            command = "put -d '" + data + "' -wc " + cap
-            args = parser.parse_args(shlex.split(command))
-            if args.mode == "put":
-                put_handler(args)
-        elif args.mode == "put":
-            put_handler(args)
-        elif args.mode == "ls":
-            ls_handler(args)
-        elif args.mode == "mkdir":
-            mkdir_handler(args)
-        elif args.mode == "cd":
-            continue
-        else:
-            usage()
+        handle_args(args, parser)
 
 def launch_editor():
     call(["emacs", "tempfile.txt"])

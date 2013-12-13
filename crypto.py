@@ -85,7 +85,7 @@ def my_hash(data):
     return h.hexdigest()
 
 # unpackage decoded data received from server and validate, decrypt
-def unpackage_data(cipher):
+def unpackage_data(cap, cipher):
     try:
         data_ar = cipher.split(SPLIT_SYMBOL)
         sign = data_ar[1]
@@ -107,8 +107,7 @@ def unpackage_data(cipher):
     raw_data = splitted[0]
     enc_pk = splitted[1]
     private = decrypt(enc_pk, cap[1])
-    data = arg.data
-    return (data, private, public)
+    return (raw_data, private, public)
 # package the data for sending over HTTP
 def package_data(data, cap, private, public):
     # store the encrypted private key in the data
