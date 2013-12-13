@@ -82,7 +82,6 @@ def get_data(name):
     conn = httplib.HTTPConnection(HOST_IP+":" + PORT)
     conn.request("GET", "/"+name)
     r1 = conn.getresponse()
-    print r1.status, r1.reason
     # Parse the http responce
     html = r1.read()
     data_ind = html.find("data=")
@@ -139,6 +138,17 @@ def mkdir_handler(arg):
     print_capabilities(root_cap)
     post_data(data, capToString(root_cap))
     print "ROOT UPDATED"
+"""
+def update_root(uri, new_data):
+    cipher = get_data(uri)
+    (data, root_private, root_public)= crypto.unpackage_data(root_cap, cipher) 
+    data = json.loads(data) 
+    data[new_data[0]] =  ":".join(new_data[1])
+    data = json.dumps(data) 
+    data = crypto.package_data(data, root_cap, root_private, root_public)
+    print_capabilities(root_cap)
+    post_data(data, capToString(root_cap))
+"""
 def put_handler(arg):
     if arg.writecap:
         # putting with a cap requires
@@ -149,10 +159,28 @@ def put_handler(arg):
         cipher = get_data(arg.writecap) 
         
         (data, private, public) = crypto.unpackage_data(cap, cipher)
+    
     else:
+        with open("private/root_dir.cap", 'r') as f:
+            line = f.read()
+            if line and line != "\n":
+                line = line[line.find("|")+1:].strip("\n")
+                root_cap = line.split(":")
+                root_cap[2] = root_cap[2]
+                cipher = get_data(line)
+                (data, root_private, root_public)= crypto.unpackage_data(root_cap, cipher) 
+                data = json.loads(data)
+ 
         # here cap is (my_hash(private_key), my_hash(public_key))
         (private, public, cap) = crypto.generate_RSA()
         cap = [FILE_WRITE_CAP, cap[0], cap[1]]
+        # put name in dir
+        data[arg.name] = capToString(cap)         
+        # update root dir data 
+        data = json.dumps(data) 
+        data = crypto.package_data(data, root_cap, root_private, root_public)
+        print_capabilities(root_cap)
+        post_data(data, capToString(root_cap))
         # save the cap in a private file 
         with open('private/files.txt', "a") as f:
             c = arg.name+ "|" + capToString(cap)+ "\n"
@@ -163,7 +191,7 @@ def put_handler(arg):
             f.write(public)
         with open('private/keys/'+arg.name+"private", "w") as f:
             f.write(private)
-        data = arg.data
+    data = arg.data
     data = crypto.package_data(data, cap, private, public)
     print_capabilities(cap)
     post_data(data, capToString(cap))
@@ -195,7 +223,7 @@ def ls_handler(arg):
         with open("private/root_dir.cap", 'r') as f:
             line = f.read()
             if line and line != "\n":
-                line = line[line.find("|")+1:]
+                line = line[line.find("|")+1:].strip("\n")
                 cap = line.split(":")
                 print "CAP: ", cap
                 cipher = get_data(line)

@@ -5,7 +5,7 @@ EXPECTED=" asdfasdfasdfasdf"
 
 python client.py put -n "b.txt" -d "asdfasdfasdfasdf"
 
-OUTPUT=$(python client.py get -n "b.txt")
+OUTPUT=$(python client.py get -n "b.txt" --t)
 
 echo $OUTPUT
 
@@ -28,7 +28,7 @@ EXPECTED2="asdfasdfasdfasdf;lkj;lkj;lkj;lkj"
 
 python client.py put -n "rare.txt" -d ";lkj;lkj;lkj;lkj"
 
-OUTPUT2=$(python client.py get -n "rare.txt")
+OUTPUT2=$(python client.py get -n "rare.txt" --t)
 
 if [ "$OUPUT2" != "$EXPECTED2" ] 
 then
@@ -41,15 +41,17 @@ echo "Test #3: Try to read file without cap"
 
 python client.py put -n "poiu.txt" -d "asdfasdf"
 
-OUTPUT=$(python client.py get -n "poiu.txt")
+OUTPUT=$(python client.py get -n "poiu.txt" --t)
 
 echo $OUTPUT
 
 #switch users
 
-sudo su Tito
+sudo su Tito <<EOF
 
-read=$(python client.py get -n "poiu.txt")
+python client.py get -n "poiu.txt"
+
+EOF
 
 #echo $read
 
@@ -59,8 +61,7 @@ read=$(python client.py get -n "poiu.txt")
 
 #exit
 
-
-echo $read
+#echo $read
 #---------------------------------------------------
 
 echo "Test #4: Make sure people with corrent capabilites can access"
@@ -76,18 +77,18 @@ fileInfo=$(python client.py put -n "mod.txt" -d "asdfasdf")
 
 echo $fileInfo
 
-wc=$(echo $fileInfo | cut -d: -f2)
+wc="$(echo $fileInfo | cut -dR -f1 | cut -ds -f2)"
 
 echo $wc
 
 python client.py put -wc $wc -d ";lkj;lkj"
 
-newFile=$(python client.py get -n "mod.txt")
+newFile=$(python client.py get -n "mod.txt" --t)
 
 echo $newFile
 
 if [ "$getInfo" == "$newFile" ] 
-then 
+then
 echo "Success"
 fi
 
