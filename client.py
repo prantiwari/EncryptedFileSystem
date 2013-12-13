@@ -166,7 +166,6 @@ def put_handler(arg):
             if line and line != "\n":
                 line = line[line.find("|")+1:].strip("\n")
                 root_cap = line.split(":")
-                root_cap[2] = root_cap[2]
                 cipher = get_data(line)
                 (data, root_private, root_public)= crypto.unpackage_data(root_cap, cipher) 
                 data = json.loads(data)

@@ -37,9 +37,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.end_headers()
         # determine the capability: write, read, or none
         name = s.path[s.path.rfind("/")+1:]
-        print "name: ", name
         cap = name.split(":") 
-        print "cap: ", cap
         r = False
         if cap[0] ==  FILE_READ_CAP or cap[0] == DIR_READ_CAP:
             print "READ"
