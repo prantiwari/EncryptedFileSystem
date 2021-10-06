@@ -10,6 +10,7 @@ SALT_SIZE= 16
 PADDING = '{'
 BLOCK_SIZE = 16
 pad = lambda s: s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * PADDING
+SPLIT_SYMBOL = "{}{}"
 # return (cap, encrypted_data) given the data
 # cap = (key, SHA(cipher))
 def encrypt(data, key=None, cap=True):
@@ -81,4 +82,45 @@ def sign_data(private_key, data):
 def my_hash(data):
     h = SHA.new()
     h.update(data)
-    return h.hexdigest()    
+    return h.hexdigest()
+
+# unpackage decoded data received from server and validate, decrypt
+def unpackage_data(cap, cipher):
+    try:
+        data_ar = cipher.split(SPLIT_SYMBOL)
+        sign = data_ar[1]
+        data = data_ar[0]
+        public = data_ar[2]
+        assert(data_ar[3] == my_hash(public))
+
+        valid = verify_RSA(public, sign, data)
+        assert(valid)
+    except AssertionError  as e:
+        print "Validation failed"
+    
+    # generate the AES decryption key and decrypt
+    salt = "a"*16
+    s = str(cap[1] + salt)
+    hashed_key = my_hash(s)
+    ptext = decrypt(data, hashed_key[:16])   
+    splitted = ptext.split(SPLIT_SYMBOL)
+    raw_data = splitted[0]
+    enc_pk = splitted[1]
+    private = decrypt(enc_pk, cap[1])
+    return (raw_data, private, public)
+# package the data for sending over HTTP
+def package_data(data, cap, private, public):
+    # store the encrypted private key in the data
+    data = data + SPLIT_SYMBOL + encrypt(private, cap[1], False)
+    # use the read key as an encryption key for the concatted data
+    salt = "a"*16
+    s = str(cap[1] + salt)
+    hashed_key = my_hash(s)
+    # encrypt the data
+    data = encrypt(data, hashed_key[:16], False)
+    # sign it with private key
+    signature = sign_data(private, data)
+    # FINAL DATA IS
+    # enc_data | signature | public_key | hash(public_key)
+    data = data +SPLIT_SYMBOL+ signature + SPLIT_SYMBOL + public + SPLIT_SYMBOL + my_hash(public)
+    return data
